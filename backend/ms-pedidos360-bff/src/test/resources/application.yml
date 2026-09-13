@@ -1,0 +1,10 @@
+azure:
+  tenant-id: test-tenant-id
+  audience: api://test-client-id
+  roles-claim: roles
+
+downstream:
+  orders:
+    base-url: http://localhost:8081
+  catalog:
+    base-url: http://localhost:8082

@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:pedidos360_catalog;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+azure:
+  tenant-id: test-tenant-id
+  audience: api://test-client-id
+  roles-claim: roles

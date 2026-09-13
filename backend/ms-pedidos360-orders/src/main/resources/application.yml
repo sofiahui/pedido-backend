@@ -1,0 +1,41 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: ms-pedidos360-orders
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:pedidos360_orders}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8
+    username: ${DB_USER:pedidos360}
+    password: ${DB_PASSWORD:pedidos360}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+azure:
+  tenant-id: ${AZURE_TENANT_ID:CHANGE_ME_TENANT_ID}
+  audience: ${AZURE_API_AUDIENCE:api://CHANGE_ME_API_CLIENT_ID}
+  roles-claim: ${AZURE_ROLES_CLAIM:roles}
+
+downstream:
+  catalog:
+    base-url: ${CATALOG_SERVICE_URL:http://localhost:8082}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    org.springframework.security: INFO

@@ -1,0 +1,7 @@
+CREATE DATABASE IF NOT EXISTS pedidos360_orders CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS pedidos360_catalog CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS 'pedidos360'@'%' IDENTIFIED BY 'pedidos360';
+GRANT ALL PRIVILEGES ON pedidos360_orders.* TO 'pedidos360'@'%';
+GRANT ALL PRIVILEGES ON pedidos360_catalog.* TO 'pedidos360'@'%';
+FLUSH PRIVILEGES;

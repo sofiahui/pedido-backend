@@ -1,0 +1,8 @@
+package cl.duocuc.pedidos360.catalog.exception;
+
+public class ProductNotFoundException extends RuntimeException {
+
+    public ProductNotFoundException(Long id) {
+        super("No existe el producto con id " + id);
+    }
+}
