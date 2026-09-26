@@ -12,9 +12,9 @@ azure:
 
 downstream:
   orders:
-    base-url: ${ORDERS_SERVICE_URL:http://98.92.205.0:8081}
+    base-url: ${ORDERS_SERVICE_URL:http://52.55.28.57:8081}
   catalog:
-    base-url: ${CATALOG_SERVICE_URL:http://100.53.63.249:8082}
+    base-url: ${CATALOG_SERVICE_URL:http://54.160.14.153:8082}
 
 springdoc:
   swagger-ui:
