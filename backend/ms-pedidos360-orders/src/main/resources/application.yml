@@ -18,8 +18,8 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
 
 azure:
-  tenant-id: ${AZURE_TENANT_ID:391785ea-8a93-4b03-aa6f-34f76498a5ad}
-  audience: ${AZURE_API_AUDIENCE:api://9f968a39-1844-4166-ada1-5833116eda90}
+  tenant-id: ${AZURE_TENANT_ID:a49d895e-910c-431b-a321-f86038460e12}
+  audience: ${AZURE_API_AUDIENCE:api://0a2fa07e-9f53-4caa-af3e-520c0dc8b941}
   roles-claim: ${AZURE_ROLES_CLAIM:roles}
 
 downstream:
