@@ -8,6 +8,7 @@ import cl.duocuc.pedidos360.orders.domain.OrderStatus;
 import cl.duocuc.pedidos360.orders.dto.CreateOrderRequest;
 import cl.duocuc.pedidos360.orders.dto.OrderItemRequest;
 import cl.duocuc.pedidos360.orders.exception.InvalidOrderTransitionException;
+import cl.duocuc.pedidos360.orders.messaging.producer.OrderCommandProducer;
 import cl.duocuc.pedidos360.orders.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,8 +26,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Pruebas de la regla clave del caso: "no se puede despachar sin aceptar" y que
- * el stock se descuenta exactamente al aceptar el pedido.
+ * Pruebas de la regla clave del caso: "no se puede despachar sin aceptar",
+ * que el stock se descuenta al aceptar el pedido y que se publican
+ * los comandos de RabbitMQ correspondientes a cada cambio de estado.
  */
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -37,11 +39,14 @@ class OrderServiceTest {
     @Mock
     private CatalogClient catalogClient;
 
+    @Mock
+    private OrderCommandProducer orderCommandProducer;
+
     private OrderService orderService;
 
     @BeforeEach
     void setUp() {
-        orderService = new OrderService(orderRepository, catalogClient);
+        orderService = new OrderService(orderRepository, catalogClient, orderCommandProducer);
     }
 
     @Test
@@ -66,6 +71,7 @@ class OrderServiceTest {
                 .isInstanceOf(InvalidOrderTransitionException.class);
 
         verify(catalogClient, never()).decrementStock(anyLong(), anyInt());
+        verifyNoInteractions(orderCommandProducer);
     }
 
     @Test
@@ -84,6 +90,8 @@ class OrderServiceTest {
 
         assertThat(updated.getStatus()).isEqualTo(OrderStatus.ACEPTADO);
         verify(catalogClient).decrementStock(10L, 3);
+        verify(orderCommandProducer).sendEmail(eq("1"), anyMap());
+        verify(orderCommandProducer).sendKitchenTicket(eq("1"), anyMap());
     }
 
     @Test
@@ -96,6 +104,7 @@ class OrderServiceTest {
 
         assertThat(updated.getStatus()).isEqualTo(OrderStatus.ENTREGADO);
         assertThat(updated.getDeliveredAt()).isNotNull();
+        verify(orderCommandProducer).sendInvoice(eq("1"), anyMap());
     }
 
     private Order orderConEstado(OrderStatus status) {

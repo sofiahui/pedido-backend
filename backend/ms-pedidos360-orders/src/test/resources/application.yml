@@ -19,3 +19,27 @@ azure:
 downstream:
   catalog:
     base-url: http://localhost:8082
+
+app:
+  rabbit:
+    username: ${RABBITMQ_USER:pedidos360}
+    password: ${RABBITMQ_PASS:pedidos360}
+    exchanges:
+      direct: cmd.direct
+      topic: cmd.topic
+      dead-letter: cmd.dead.dlx
+    email:
+      queue: q.cmd.email
+      dlq: q.cmd.email.dlq
+      routing-key: email.send
+      topic-pattern: "email.#"
+    kitchen:
+      queue: q.cmd.kitchen
+      dlq: q.cmd.kitchen.dlq
+      routing-key: kitchen.ticket
+      topic-pattern: "kitchen.#"
+    invoice:
+      queue: q.cmd.invoice
+      dlq: q.cmd.invoice.dlq
+      routing-key: invoice.gen
+      topic-pattern: "invoice.#"
