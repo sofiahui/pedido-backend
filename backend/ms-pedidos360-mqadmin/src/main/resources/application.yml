@@ -1,0 +1,44 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: ms-pedidos360-mqadmin
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    # Clúster de 2 nodos: lista "host1:5672,host2:5673". Si se deja vacío se usa host/port.
+    addresses: ${RABBITMQ_ADDRESSES:}
+    username: ${RABBITMQ_USER:pedidos360}
+    password: ${RABBITMQ_PASS:pedidos360}
+    connection-timeout: 3s
+
+azure:
+  tenant-id: ${AZURE_TENANT_ID:391785ea-8a93-4b03-aa6f-34f76498a5ad}
+  audience: ${AZURE_API_AUDIENCE:9f968a39-1844-4166-ada1-5833116eda90}
+  roles-claim: ${AZURE_ROLES_CLAIM:roles}
+
+# Recursos del sistema que este servicio NO deja eliminar (los usan orders y notify).
+app:
+  admin:
+    dead-letter-exchange: cmd.dead.dlx
+    protected-queue-prefixes:
+      - q.cmd.
+    protected-exchanges:
+      - cmd.direct
+      - cmd.topic
+      - cmd.dead.dlx
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    org.springframework.security: INFO

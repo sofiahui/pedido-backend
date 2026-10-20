@@ -1,0 +1,4 @@
+package cl.duocuc.pedidos360.mqadmin.dto;
+
+public record BindingResponse(String exchange, String queue, String routingKey) {
+}

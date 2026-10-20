@@ -1,0 +1,14 @@
+azure:
+  tenant-id: test-tenant-id
+  audience: test-client-id
+  roles-claim: roles
+
+app:
+  admin:
+    dead-letter-exchange: cmd.dead.dlx
+    protected-queue-prefixes:
+      - q.cmd.
+    protected-exchanges:
+      - cmd.direct
+      - cmd.topic
+      - cmd.dead.dlx
