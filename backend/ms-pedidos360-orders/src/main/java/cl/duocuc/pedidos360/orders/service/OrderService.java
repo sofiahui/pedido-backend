@@ -20,6 +20,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import cl.duocuc.pedidos360.orders.messaging.producer.OrderCommandProducer;
+import java.util.HashMap;
+
 /**
  * Regla de negocio central: la máquina de estados de un pedido.
  * CREADO -> ACEPTADO -> EN_PREPARACION -> DESPACHADO -> ENTREGADO, con CANCELADO
@@ -30,6 +33,7 @@ import java.util.Set;
 public class OrderService {
 
     private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = new EnumMap<>(OrderStatus.class);
+    private final OrderCommandProducer orderCommandProducer;
 
     static {
         ALLOWED_TRANSITIONS.put(OrderStatus.CREADO, EnumSet.of(OrderStatus.ACEPTADO, OrderStatus.CANCELADO));
@@ -43,10 +47,15 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CatalogClient catalogClient;
 
-    public OrderService(OrderRepository orderRepository, CatalogClient catalogClient) {
-        this.orderRepository = orderRepository;
-        this.catalogClient = catalogClient;
-    }
+    public OrderService(
+        OrderRepository orderRepository,
+        CatalogClient catalogClient,
+        OrderCommandProducer orderCommandProducer) {
+
+    this.orderRepository = orderRepository;
+    this.catalogClient = catalogClient;
+    this.orderCommandProducer = orderCommandProducer;
+}
 
     @Transactional
     public Order createOrder(String customerId, CreateOrderRequest request) {
@@ -79,27 +88,64 @@ public class OrderService {
         return restrictToOwn ? orderRepository.findByCustomerId(customerId) : orderRepository.findAll();
     }
 
-    @Transactional
-    public Order changeStatus(Long id, OrderStatus newStatus) {
-        Order order = getOrder(id);
-        OrderStatus current = order.getStatus();
+    
+@Transactional
+public Order changeStatus(Long id, OrderStatus newStatus) {
+    Order order = getOrder(id);
+    OrderStatus current = order.getStatus();
 
-        Set<OrderStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(current, Set.of());
-        if (!allowed.contains(newStatus)) {
-            throw new InvalidOrderTransitionException(current, newStatus);
-        }
+    Set<OrderStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(current, Set.of());
 
-        if (newStatus == OrderStatus.ACEPTADO) {
-            for (OrderItem item : order.getItems()) {
-                catalogClient.decrementStock(item.getProductId(), item.getQuantity());
-            }
-        }
-
-        order.setStatus(newStatus);
-        if (newStatus == OrderStatus.ENTREGADO) {
-            order.setDeliveredAt(Instant.now());
-        }
-
-        return orderRepository.save(order);
+    if (!allowed.contains(newStatus)) {
+        throw new InvalidOrderTransitionException(current, newStatus);
     }
+
+    if (newStatus == OrderStatus.ACEPTADO) {
+        for (OrderItem item : order.getItems()) {
+            catalogClient.decrementStock(
+                    item.getProductId(),
+                    item.getQuantity()
+            );
+        }
+    }
+
+    order.setStatus(newStatus);
+
+    if (newStatus == OrderStatus.ENTREGADO) {
+        order.setDeliveredAt(Instant.now());
+    }
+
+    Order saved = orderRepository.save(order);
+
+    // Preparar los datos del mensaje.
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("orderId", saved.getId());
+    payload.put("status", saved.getStatus().name());
+    payload.put("customerId", saved.getCustomerId());
+
+    // Enviar una notificación por cada cambio de estado.
+    orderCommandProducer.sendEmail(
+            String.valueOf(saved.getId()),
+            payload
+    );
+
+    // Si el pedido fue aceptado, enviar ticket a cocina.
+    if (newStatus == OrderStatus.ACEPTADO) {
+        orderCommandProducer.sendKitchenTicket(
+                String.valueOf(saved.getId()),
+                Map.of("orderId", saved.getId())
+        );
+    }
+
+    // Si el pedido fue entregado, generar boleta o factura.
+    if (newStatus == OrderStatus.ENTREGADO) {
+        orderCommandProducer.sendInvoice(
+                String.valueOf(saved.getId()),
+                Map.of("orderId", saved.getId())
+        );
+    }
+
+    return saved;
+}
+
 }

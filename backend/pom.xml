@@ -16,6 +16,7 @@
         <module>ms-pedidos360-bff</module>
         <module>ms-pedidos360-orders</module>
         <module>ms-pedidos360-catalog</module>
+        <module>ms-pedidos360-notify</module>        
     </modules>
 
     <properties>
@@ -47,11 +48,12 @@
                     <artifactId>spring-boot-maven-plugin</artifactId>
                     <version>${spring-boot.version}</version>
                 </plugin>
-                <plugin>
+                                <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <configuration>
                         <release>${maven.compiler.release}</release>
+                        <parameters>true</parameters>
                     </configuration>
                 </plugin>
             </plugins>
