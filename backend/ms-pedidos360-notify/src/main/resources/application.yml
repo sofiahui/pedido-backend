@@ -4,6 +4,8 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
+    # Clúster de 2 nodos: lista "host1:5672,host2:5673". Si se deja vacío se usa host/port.
+    addresses: ${RABBITMQ_ADDRESSES:}
     username: ${RABBITMQ_USER:pedidos360}
     password: ${RABBITMQ_PASS:pedidos360}
     connection-timeout: 3s
@@ -16,6 +18,9 @@ spring:
 # Mismos nombres que en orders
 app:
   rabbit:
+    # true: un listener lee las DLQ, registra el detalle en el log y confirma (ACK).
+    dlq-listener:
+      enabled: ${RABBIT_DLQ_LISTENER_ENABLED:true}
     exchanges:
       direct: cmd.direct
       topic: cmd.topic
