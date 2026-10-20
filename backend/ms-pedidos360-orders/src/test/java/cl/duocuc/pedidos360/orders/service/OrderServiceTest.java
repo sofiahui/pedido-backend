@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -105,6 +107,45 @@ class OrderServiceTest {
         assertThat(updated.getStatus()).isEqualTo(OrderStatus.ENTREGADO);
         assertThat(updated.getDeliveredAt()).isNotNull();
         verify(orderCommandProducer).sendInvoice(eq("1"), anyMap());
+    }
+
+    @Test
+    void losComandosSePublicanSoloDespuesDelCommit() {
+        Order order = orderConEstado(OrderStatus.DESPACHADO);
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            orderService.changeStatus(1L, OrderStatus.ENTREGADO);
+
+            // Dentro de la transacción todavía no se publica nada.
+            verifyNoInteractions(orderCommandProducer);
+
+            // Al hacer commit, se publican el email y la boleta.
+            TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+            verify(orderCommandProducer).sendEmail(eq("1"), anyMap());
+            verify(orderCommandProducer).sendInvoice(eq("1"), anyMap());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void siLaTransaccionNoHaceCommitNoSePublicaNada() {
+        Order order = orderConEstado(OrderStatus.CREADO);
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            orderService.changeStatus(1L, OrderStatus.CANCELADO);
+            // Se simula un rollback: nunca se invoca afterCommit.
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+
+        verifyNoInteractions(orderCommandProducer);
     }
 
     private Order orderConEstado(OrderStatus status) {
