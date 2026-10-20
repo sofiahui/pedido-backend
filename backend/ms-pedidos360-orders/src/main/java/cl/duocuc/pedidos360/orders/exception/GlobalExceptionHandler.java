@@ -3,6 +3,7 @@ package cl.duocuc.pedidos360.orders.exception;
 import cl.duocuc.pedidos360.orders.dto.ApiError;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -25,6 +26,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(StockUnavailableException.class)
     public ResponseEntity<ApiError> handleStockUnavailable(StockUnavailableException ex) {
         return build(HttpStatus.CONFLICT, "Stock no disponible", ex.getMessage());
+    }
+
+    /** Sin este handler, Exception.class convertiría un 403 de @PreAuthorize en un 500. */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex) {
+        return build(HttpStatus.FORBIDDEN, "Acceso denegado",
+                "El rol autenticado no tiene permisos para este recurso");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

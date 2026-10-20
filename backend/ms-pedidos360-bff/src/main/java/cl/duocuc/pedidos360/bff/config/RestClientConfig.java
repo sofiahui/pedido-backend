@@ -17,4 +17,9 @@ public class RestClientConfig {
     public RestClient catalogRestClient(@Value("${downstream.catalog.base-url}") String baseUrl) {
         return RestClient.builder().baseUrl(baseUrl).build();
     }
+
+    @Bean
+    public RestClient mqadminRestClient(@Value("${downstream.mqadmin.base-url}") String baseUrl) {
+        return RestClient.builder().baseUrl(baseUrl).build();
+    }
 }

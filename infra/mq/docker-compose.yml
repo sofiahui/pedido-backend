@@ -1,20 +1,76 @@
+# Clúster RabbitMQ de 2 nodos (rabbit1 + rabbit2) para Pedidos360.
+#
+# IGUALES en ambos nodos: imagen/versión, RABBITMQ_ERLANG_COOKIE (secreto compartido que
+# permite que los nodos se reconozcan), usuario y clave, y la configuración de clúster.
+# DISTINTOS: hostname / nombre de nodo, puertos publicados en el host y volumen de datos.
+#
+# Uso:  cp .env.example .env   (editar la cookie)   ->   docker compose up -d
+name: pedidos360-mq
+
 services:
-  rabbitmq:
+  rabbit1:
     image: rabbitmq:4.2-management
-    container_name: pedidos360-rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+    container_name: rabbit1
+    hostname: rabbit1
+    restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_NODENAME: rabbit@rabbit1
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:?defina RABBITMQ_ERLANG_COOKIE en .env}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?defina RABBITMQ_USER en .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?defina RABBITMQ_PASS en .env}
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Management UI
     volumes:
-      - pedidos360_rabbitmq_data:/var/lib/rabbitmq
+      - rabbit1_data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/conf.d/20-cluster.conf:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
+
+  rabbit2:
+    image: rabbitmq:4.2-management
+    container_name: rabbit2
+    hostname: rabbit2
+    restart: unless-stopped
+    environment:
+      RABBITMQ_NODENAME: rabbit@rabbit2
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:?defina RABBITMQ_ERLANG_COOKIE en .env}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?defina RABBITMQ_USER en .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?defina RABBITMQ_PASS en .env}
+    ports:
+      - "5673:5672"     # AMQP del segundo nodo
+      - "15673:15672"   # Management UI del segundo nodo
+    volumes:
+      - rabbit2_data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/conf.d/20-cluster.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Tarea de una sola ejecución: espera a que los 2 nodos formen el clúster y aplica
+  # las políticas de retención (max-length, message-ttl) a las colas q.cmd.* y sus DLQ.
+  rabbit-setup:
+    image: rabbitmq:4.2-management
+    container_name: rabbit-setup
+    depends_on:
+      rabbit1:
+        condition: service_healthy
+      rabbit2:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:?defina RABBITMQ_ERLANG_COOKIE en .env}
+    volumes:
+      - ./setup-policies.sh:/setup-policies.sh:ro
+    entrypoint: ["bash", "/setup-policies.sh"]
 
 volumes:
-  pedidos360_rabbitmq_data:
+  rabbit1_data:
+  rabbit2_data:

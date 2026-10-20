@@ -16,7 +16,8 @@
         <module>ms-pedidos360-bff</module>
         <module>ms-pedidos360-orders</module>
         <module>ms-pedidos360-catalog</module>
-        <module>ms-pedidos360-notify</module>        
+        <module>ms-pedidos360-notify</module>
+        <module>ms-pedidos360-mqadmin</module>
     </modules>
 
     <properties>

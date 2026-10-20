@@ -12,6 +12,8 @@ import cl.duocuc.pedidos360.orders.exception.OrderNotFoundException;
 import cl.duocuc.pedidos360.orders.repository.OrderRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.EnumMap;
@@ -117,35 +119,42 @@ public Order changeStatus(Long id, OrderStatus newStatus) {
 
     Order saved = orderRepository.save(order);
 
-    // Preparar los datos del mensaje.
-    Map<String, Object> payload = new HashMap<>();
-    payload.put("orderId", saved.getId());
-    payload.put("status", saved.getStatus().name());
-    payload.put("customerId", saved.getCustomerId());
-
-    // Enviar una notificación por cada cambio de estado.
-    orderCommandProducer.sendEmail(
-            String.valueOf(saved.getId()),
-            payload
-    );
-
-    // Si el pedido fue aceptado, enviar ticket a cocina.
-    if (newStatus == OrderStatus.ACEPTADO) {
-        orderCommandProducer.sendKitchenTicket(
-                String.valueOf(saved.getId()),
-                Map.of("orderId", saved.getId())
-        );
-    }
-
-    // Si el pedido fue entregado, generar boleta o factura.
-    if (newStatus == OrderStatus.ENTREGADO) {
-        orderCommandProducer.sendInvoice(
-                String.valueOf(saved.getId()),
-                Map.of("orderId", saved.getId())
-        );
-    }
+    // Los comandos de RabbitMQ se publican SOLO si la transacción hace commit: así nunca sale
+    // un correo, ticket o boleta de un cambio de estado que no quedó guardado en la base.
+    publishAfterCommit(() -> publishCommands(saved, newStatus));
 
     return saved;
 }
 
+    /** Envía el email de cada cambio de estado, el ticket de cocina al ACEPTAR y la boleta al ENTREGAR. */
+    private void publishCommands(Order saved, OrderStatus newStatus) {
+        String orderId = String.valueOf(saved.getId());
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("orderId", saved.getId());
+        payload.put("status", saved.getStatus().name());
+        payload.put("customerId", saved.getCustomerId());
+        orderCommandProducer.sendEmail(orderId, payload);
+
+        if (newStatus == OrderStatus.ACEPTADO) {
+            orderCommandProducer.sendKitchenTicket(orderId, Map.of("orderId", saved.getId()));
+        }
+        if (newStatus == OrderStatus.ENTREGADO) {
+            orderCommandProducer.sendInvoice(orderId, Map.of("orderId", saved.getId()));
+        }
+    }
+
+    /** Ejecuta la acción tras el commit; si no hay transacción activa (p. ej. en tests), la ejecuta de inmediato. */
+    private void publishAfterCommit(Runnable action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+        } else {
+            action.run();
+        }
+    }
 }

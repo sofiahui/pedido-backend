@@ -31,3 +31,9 @@ Thumbs.db
 
 # --- Docker volúmenes locales ---
 infra/db/mysql-data/
+
+# --- Frontend: repo git independiente (pedido-frontend), no va dentro de este ---
+frontend-pedidos360/
+
+# --- Herramientas locales de Claude Code ---
+.claude/
